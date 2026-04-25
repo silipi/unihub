@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   FileText,
   Video,
@@ -10,7 +10,7 @@ import {
   Filter,
   BookOpen,
 } from "lucide-react";
-import { resources, subjects, type Resource } from "@/lib/mock-data";
+import { type Resource, type Subject } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 
 const typeIcons: Record<Resource["type"], React.ReactNode> = {
@@ -40,9 +40,37 @@ const typeLabels: Record<Resource["type"], string> = {
 const filters = ["Todos", "Prova", "Resumo", "Videoaula", "Material", "Slides"];
 
 export default function RecursosPage() {
+  const [resources, setResources] = useState<Resource[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("Todos");
   const [subjectFilter, setSubjectFilter] = useState("Todas");
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [resourcesResponse, subjectsResponse] = await Promise.all([
+          fetch("/api/resources"),
+          fetch("/api/subjects"),
+        ]);
+
+        if (resourcesResponse.ok) {
+          const resourcesData = (await resourcesResponse.json()) as Resource[];
+          setResources(resourcesData);
+        }
+
+        if (subjectsResponse.ok) {
+          const subjectsData = (await subjectsResponse.json()) as Subject[];
+          setSubjects(subjectsData);
+        }
+      } catch {
+        setResources([]);
+        setSubjects([]);
+      }
+    }
+
+    loadData();
+  }, []);
 
   const filtered = resources.filter((r) => {
     const matchesSearch =
@@ -114,7 +142,6 @@ export default function RecursosPage() {
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs text-muted">Disciplina:</span>
           {["Todas", ...subjects.map((s) => s.code)].map((code) => {
-            const label = code === "Todas" ? "Todas" : subjects.find((s) => s.code === code)?.name.split(" ")[0] + "..." || code;
             return (
               <button
                 key={code}

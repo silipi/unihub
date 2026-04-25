@@ -2,8 +2,9 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Send, Bot, User, Sparkles } from "lucide-react";
-import { initialChatMessages, student, type ChatMessage } from "@/lib/mock-data";
+import { initialChatMessages, type ChatMessage } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
+import type { Student } from "@/lib/mock-data";
 
 const suggestions = [
   "Qual a nota mínima para aprovação?",
@@ -14,40 +15,61 @@ const suggestions = [
   "Dicas para melhorar em Cálculo Numérico",
 ];
 
-const aiResponses: Record<string, string> = {
-  "Qual a nota mínima para aprovação?":
-    "Na UNIOESTE, a nota mínima para aprovação em disciplinas de graduação é **7,0** (sete). Além disso, você precisa ter frequência mínima de **75%** nas aulas. Se você ficar entre 5,0 e 6,9 com frequência acima de 75%, poderá realizar o Exame Final. Com nota no Exame Final, a média final é calculada como (Nota Semestral + Nota EF) / 2, e você precisa de pelo menos 5,0.",
+async function getAIResponse(message: string): Promise<string> {
+  const response = await fetch("/api/assistente", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ message }),
+  });
 
-  "Como funciona o TCC no curso?":
-    "O Trabalho de Conclusão de Curso (TCC) em Ciência da Computação na UNIOESTE é dividido em duas etapas:\n\n**TCC I** (7º semestre): Definição do tema, orientador e elaboração da proposta.\n**TCC II** (8º semestre): Desenvolvimento e defesa perante banca avaliadora.\n\nVocê está no 5º semestre, então ainda tem tempo. Comece a pensar em áreas de interesse — áreas como Inteligência Artificial, Engenharia de Software e Redes são bastante exploradas aqui no campus.",
+  const data = (await response.json()) as { response?: string; error?: string };
 
-  "Quais prazos tenho esta semana?":
-    "Com base no seu calendário acadêmico, você tem os seguintes prazos próximos:\n\n- **Entrega T1 — Engenharia de Software**: 08/05 (em 3 dias) — urgente!\n- **Prova P1 — Redes de Computadores**: 13/05 (em 8 dias)\n- **Prova P1 — Cálculo Numérico**: 15/05 (em 10 dias)\n\nPriorize a entrega do T1 de Engenharia de Software. Posso ajudá-lo a revisar algum conteúdo?",
+  if (!response.ok) {
+    throw new Error(data.error ?? "Falha ao consultar o assistente.");
+  }
 
-  "Me explica o algoritmo de Dijkstra":
-    "O **algoritmo de Dijkstra** é um algoritmo de busca do caminho mínimo em grafos ponderados com arestas de peso não-negativo.\n\n**Como funciona:**\n1. Inicie com distância 0 para o nó origem e infinito para os demais\n2. Use uma fila de prioridade (min-heap) para sempre processar o nó de menor distância\n3. Para cada vizinho do nó atual, atualize a distância se o caminho via nó atual for menor\n4. Repita até processar todos os nós\n\n**Complexidade:** O((V + E) log V) com heap binário.\n\nÉ relevante para sua disciplina de Análise e Projeto de Algoritmos. Quer que eu gere exercícios práticos?",
-
-  "Como solicitar trancamento de disciplina?":
-    "Para trancar uma disciplina na UNIOESTE:\n\n1. Acesse o **Academus** com suas credenciais\n2. Vá em *Matrículas > Trancamento de Disciplina*\n3. Selecione a disciplina e confirme\n\n**Prazos importantes:** O trancamento só é permitido até a data definida no calendário acadêmico (geralmente até 30% das aulas). Após esse prazo, o trancamento não é mais possível.\n\n**Atenção:** O trancamento conta para o histórico, mas não impacta o CR. Se precisar de orientação, o Departamento de Ciência da Computação atende de segunda a sexta, das 8h às 12h e 14h às 18h.",
-
-  "Dicas para melhorar em Cálculo Numérico":
-    "Vi que sua nota em Cálculo Numérico está em **4,3** e sua frequência em **72%** (abaixo dos 75% mínimos). Aqui estão algumas dicas:\n\n1. **Frequência primeiro**: compareça às próximas aulas — você está no limite\n2. **Monitoria semanal**: há uma monitoria disponível toda semana (terça, 16h, Sala 105)\n3. **Recursos disponíveis**: baixe a lista de exercícios sobre Métodos Numéricos no repositório\n4. **Foco nos tópicos da P1**: interpolação de Lagrange e Newton, e métodos iterativos (Bissecção, Newton-Raphson)\n\nPosso gerar um resumo dos principais métodos para você revisar antes da prova?",
-};
+  return data.response ?? "Não consegui gerar uma resposta no momento.";
+}
 
 export default function AssistentePage() {
   const [messages, setMessages] = useState<ChatMessage[]>(initialChatMessages);
+  const [student, setStudent] = useState<Student | null>(null);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const messageIdRef = useRef(2);
+
+  function nextMessageId() {
+    const id = messageIdRef.current;
+    messageIdRef.current += 1;
+    return id.toString();
+  }
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
-  function sendMessage(text: string) {
+  useEffect(() => {
+    async function loadStudent() {
+      try {
+        const response = await fetch("/api/student");
+        if (!response.ok) return;
+        const data = (await response.json()) as Student | null;
+        setStudent(data);
+      } catch {
+        setStudent(null);
+      }
+    }
+
+    loadStudent();
+  }, []);
+
+  async function sendMessage(text: string) {
     if (!text.trim()) return;
     const userMsg: ChatMessage = {
-      id: Date.now().toString(),
+      id: nextMessageId(),
       role: "user",
       content: text,
       timestamp: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
@@ -56,19 +78,33 @@ export default function AssistentePage() {
     setInput("");
     setIsTyping(true);
 
-    setTimeout(() => {
-      const response =
-        aiResponses[text] ??
-        `Entendido! Sobre "${text}", posso ajudá-lo com informações sobre regulamentos da UNIOESTE, conteúdo das suas disciplinas do semestre, prazos acadêmicos e muito mais. Pode ser mais específico para eu dar uma resposta mais precisa?`;
+    try {
+      const response = await getAIResponse(text);
       const botMsg: ChatMessage = {
-        id: (Date.now() + 1).toString(),
+        id: nextMessageId(),
         role: "assistant",
         content: response,
         timestamp: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
       };
-      setIsTyping(false);
       setMessages((prev) => [...prev, botMsg]);
-    }, 1200);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Ocorreu um erro ao buscar resposta do assistente.";
+      const botErrorMsg: ChatMessage = {
+        id: nextMessageId(),
+        role: "assistant",
+        content: `Não consegui responder agora. ${errorMessage}`,
+        timestamp: new Date().toLocaleTimeString("pt-BR", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      };
+      setMessages((prev) => [...prev, botErrorMsg]);
+    } finally {
+      setIsTyping(false);
+    }
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -84,7 +120,7 @@ export default function AssistentePage() {
         <div className="flex justify-center">
           <span className="text-xs text-muted bg-surface border border-border rounded-full px-3 py-1.5 flex items-center gap-1.5">
             <Sparkles className="w-3 h-3 text-primary" />
-            Assistente ciente do seu perfil acadêmico — {student.course}, {student.semester}º sem.
+            Assistente ciente do seu perfil acadêmico — {student?.course ?? "Curso"}, {student?.semester ?? "?"}º sem.
           </span>
         </div>
 

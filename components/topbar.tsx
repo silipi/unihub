@@ -2,7 +2,8 @@
 
 import { usePathname } from "next/navigation";
 import { Bell } from "lucide-react";
-import { student } from "@/lib/mock-data";
+import { useEffect, useState } from "react";
+import type { Student } from "@/lib/mock-data";
 
 const pageTitles: Record<string, { title: string; subtitle: string }> = {
   "/dashboard": { title: "Dashboard", subtitle: "Visão geral do seu semestre" },
@@ -15,6 +16,22 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
 export function Topbar() {
   const pathname = usePathname();
   const page = pageTitles[pathname] ?? { title: "UniHub", subtitle: "" };
+  const [student, setStudent] = useState<Student | null>(null);
+
+  useEffect(() => {
+    async function loadStudent() {
+      try {
+        const response = await fetch("/api/student");
+        if (!response.ok) return;
+        const data = (await response.json()) as Student | null;
+        setStudent(data);
+      } catch {
+        setStudent(null);
+      }
+    }
+
+    loadStudent();
+  }, []);
 
   return (
     <header className="flex items-center justify-between px-6 py-4 bg-surface border-b border-border shrink-0">
@@ -32,7 +49,7 @@ export function Topbar() {
         </button>
         <div className="flex items-center gap-2.5 md:hidden">
           <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary text-xs font-bold">
-            {student.initials}
+            {student?.initials ?? "U"}
           </div>
         </div>
       </div>

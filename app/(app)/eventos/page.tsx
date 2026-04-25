@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Calendar,
   MapPin,
@@ -9,7 +9,7 @@ import {
   Star,
   Filter,
 } from "lucide-react";
-import { events, type Event } from "@/lib/mock-data";
+import { type Event } from "@/lib/mock-data";
 import { formatDate, cn } from "@/lib/utils";
 
 const typeLabels: Record<Event["type"], string> = {
@@ -31,7 +31,23 @@ const typeColors: Record<Event["type"], string> = {
 const filters = ["Todos", "Recomendados", "Inscritos", "Workshop", "Palestra", "Monitoria", "Congresso"];
 
 export default function EventosPage() {
+  const [events, setEvents] = useState<Event[]>([]);
   const [active, setActive] = useState("Todos");
+
+  useEffect(() => {
+    async function loadEvents() {
+      try {
+        const response = await fetch("/api/events");
+        if (!response.ok) return;
+        const data = (await response.json()) as Event[];
+        setEvents(data);
+      } catch {
+        setEvents([]);
+      }
+    }
+
+    loadEvents();
+  }, []);
 
   const filtered = events.filter((ev) => {
     if (active === "Todos") return true;

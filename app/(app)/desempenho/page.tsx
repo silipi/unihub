@@ -5,7 +5,7 @@ import {
   BookOpen,
   Users,
 } from "lucide-react";
-import { subjects, student } from "@/lib/mock-data";
+import { getStudent, getSubjects } from "@/lib/sqlite";
 import { cn } from "@/lib/utils";
 
 function GradeCircle({ value, size = "lg" }: { value: number; size?: "sm" | "lg" }) {
@@ -71,7 +71,12 @@ function StatusBadge({ status }: { status: "ok" | "alert" | "danger" }) {
   );
 }
 
-export default function DesempenhoPage() {
+export default async function DesempenhoPage() {
+  const [student, subjects] = await Promise.all([getStudent(), getSubjects()]);
+  if (!student) {
+    return null;
+  }
+
   const totalCredits = subjects.reduce((acc, s) => acc + s.credits, 0);
   const avgGrade =
     subjects.reduce((acc, s) => acc + (s.gradePartial ?? 0), 0) / subjects.length;

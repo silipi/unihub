@@ -1,7 +1,7 @@
 import { Star, AlertTriangle, CalendarClock, BookOpen, TrendingUp, Users } from "lucide-react";
 import Link from "next/link";
 import { StatCard } from "@/components/stat-card";
-import { student, subjects, events, deadlines } from "@/lib/mock-data";
+import { getDeadlines, getEvents, getStudent, getSubjects } from "@/lib/sqlite";
 import { formatDate, daysUntil, cn } from "@/lib/utils";
 
 function ProgressBar({ value, max, color }: { value: number; max: number; color: string }) {
@@ -13,7 +13,18 @@ function ProgressBar({ value, max, color }: { value: number; max: number; color:
   );
 }
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const [student, subjects, events, deadlines] = await Promise.all([
+    getStudent(),
+    getSubjects(),
+    getEvents(),
+    getDeadlines(),
+  ]);
+
+  if (!student) {
+    return null;
+  }
+
   const alertSubjects = subjects.filter((s) => s.status === "alert" || s.status === "danger");
   const upcomingEvents = events.filter((e) => !e.isRegistered).slice(0, 3);
 

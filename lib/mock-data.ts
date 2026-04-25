@@ -15,6 +15,8 @@ export const student = {
   avatarUrl: null,
 };
 
+export type Student = typeof student;
+
 export type Subject = {
   id: string;
   code: string;

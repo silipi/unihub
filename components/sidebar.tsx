@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   TrendingUp,
@@ -13,7 +14,7 @@ import {
   GraduationCap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { student } from "@/lib/mock-data";
+import type { Student } from "@/lib/mock-data";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -25,6 +26,22 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [student, setStudent] = useState<Student | null>(null);
+
+  useEffect(() => {
+    async function loadStudent() {
+      try {
+        const response = await fetch("/api/student");
+        if (!response.ok) return;
+        const data = (await response.json()) as Student | null;
+        setStudent(data);
+      } catch {
+        setStudent(null);
+      }
+    }
+
+    loadStudent();
+  }, []);
 
   return (
     <aside className="hidden md:flex flex-col w-64 min-h-screen bg-surface border-r border-border shrink-0">
@@ -70,11 +87,11 @@ export function Sidebar() {
         </button>
         <div className="flex items-center gap-3 px-3 py-2.5 mt-1">
           <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0">
-            {student.initials}
+            {student?.initials ?? "U"}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-foreground truncate">{student.name}</p>
-            <p className="text-xs text-muted truncate">{student.matricula}</p>
+            <p className="text-sm font-medium text-foreground truncate">{student?.name ?? "Aluno"}</p>
+            <p className="text-xs text-muted truncate">{student?.matricula ?? "—"}</p>
           </div>
           <button
             aria-label="Sair"
